@@ -865,11 +865,15 @@ body.modo-rh .faixa { display: none; }
 @keyframes varrer { 0% { left: -70%; } 35%, 100% { left: 140%; } }
 @keyframes pulsar { 50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .45), 0 0 2.2cqw rgba(214, 218, 224, .5); } }
 .capa-rh { position: absolute; right: 14px; bottom: 8px; font-size: 12px; color: rgba(199, 203, 209, .45); }
-.h-end { left: 19.62%; top: 46.01%; width: 29.55%; height: 12.54%; }
-.h-tel { left: 50.84%; top: 46.01%; width: 29.61%; height: 12.54%; }
-.h-uni { left: 19.62%; top: 60.79%; width: 29.55%; height: 12.54%; }
-.h-sel { left: 50.84%; top: 60.79%; width: 29.61%; height: 12.54%; }
-.h-cta { left: 34.51%; top: 76.30%; width: 30.98%; height: 8.93%; }
+.h-end { left: 17.38%; top: 45.68%; width: 31.78%; height: 13.70%; }
+.h-tel { left: 50.84%; top: 45.68%; width: 31.87%; height: 13.70%; }
+.h-uni { left: 17.38%; top: 61.88%; width: 31.78%; height: 13.70%; }
+.h-sel { left: 50.84%; top: 61.88%; width: 31.87%; height: 13.70%; }
+.h-cta { left: 33.46%; top: 78.74%; width: 32.34%; height: 8.06%; }
+
+body.calibrando .hot { animation: none; outline: 2px dashed #FF3B3B; background: rgba(255, 59, 59, .15); cursor: move; touch-action: none; }
+body.calibrando .hot::after { left: auto; top: auto; right: 0; bottom: 0; width: 14px; height: 14px; background: #FF3B3B; transform: none; animation: none; }
+.calib-saida { position: fixed; right: 10px; top: 10px; z-index: 200; width: min(560px, 60vw); height: 112px; padding: 8px; opacity: .92; font: 12px/1.4 monospace; color: #7CFF9B; background: #111; border: 1px solid #444; border-radius: 8px; }
 
 /* Responsivo */
 @media (max-width: 860px) {

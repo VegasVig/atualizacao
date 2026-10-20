@@ -1,7 +1,7 @@
 'use strict';
 
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbzdIq3TpUJYYOP9vC9vfAyNYrDNreZPJKeV-ShGoeDRtZSHSmMuBoTD0U-n5aN0TJ3u/exec',
+  API_URL: 'COLE_AQUI_A_URL_DO_APP_DA_WEB',
   FOTO_LADOS: [960, 720],
   FOTO_QUALIDADES: [0.86, 0.78, 0.7, 0.62, 0.55],
   TIMEOUT_MS: 45000
@@ -588,7 +588,48 @@ async function sair(perguntar = true) {
   irPara('inicio');
 }
 
+function calibrar() {
+  if (!new URLSearchParams(location.search).has('calibrar')) return;
+  document.body.classList.add('calibrando');
+  const quadro = $('.capa-quadro');
+  const saida = el('textarea', { class: 'calib-saida', readonly: true, 'aria-label': 'CSS das áreas clicáveis' });
+  document.body.append(saida);
+  const pct = (v, t) => (v / t * 100).toFixed(2) + '%';
+  const gerar = () => {
+    saida.value = $$('.hot').map(h => `.${h.classList[1]} { left: ${h.style.left}; top: ${h.style.top}; width: ${h.style.width}; height: ${h.style.height}; }`).join('\n');
+  };
+  $$('.hot').forEach(h => {
+    const q = quadro.getBoundingClientRect();
+    const r = h.getBoundingClientRect();
+    Object.assign(h.style, { left: pct(r.left - q.left, q.width), top: pct(r.top - q.top, q.height), width: pct(r.width, q.width), height: pct(r.height, q.height) });
+    h.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const q2 = quadro.getBoundingClientRect();
+      const r2 = h.getBoundingClientRect();
+      const redimensionar = e.clientX > r2.right - 18 && e.clientY > r2.bottom - 18;
+      const x0 = e.clientX, y0 = e.clientY;
+      const base = { l: r2.left - q2.left, t: r2.top - q2.top, w: r2.width, h: r2.height };
+      const mover = ev => {
+        const dx = ev.clientX - x0, dy = ev.clientY - y0;
+        if (redimensionar) {
+          h.style.width = pct(Math.max(20, base.w + dx), q2.width);
+          h.style.height = pct(Math.max(20, base.h + dy), q2.height);
+        } else {
+          h.style.left = pct(base.l + dx, q2.width);
+          h.style.top = pct(base.t + dy, q2.height);
+        }
+        gerar();
+      };
+      const soltar = () => { removeEventListener('pointermove', mover); removeEventListener('pointerup', soltar); };
+      addEventListener('pointermove', mover);
+      addEventListener('pointerup', soltar);
+    });
+  });
+  gerar();
+}
+
 function comecar(passo) {
+  if (document.body.classList.contains('calibrando')) return;
   S.destino = passo;
   if (S.token) { S.destino = null; irPara(passo); } else irPara('login');
 }
@@ -970,6 +1011,7 @@ async function iniciar() {
   ligarEventos();
   rota();
   irPara('inicio');
+  calibrar();
   try {
     S.config = await api('config');
     montarUniforme();
