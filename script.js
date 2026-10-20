@@ -69,14 +69,14 @@ function uuid() {
 function erroApp(code, msg) { const e = new Error(msg); e.code = code; return e; }
 
 async function api(action, payload = {}) {
-  if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(CONFIG.API_URL)) {
+  if (!/^https:\/\/script\.google\.com\/(a\/macros\/[^/]+|macros)\/s\/[\w-]+\/exec$/.test(CONFIG.API_URL.trim())) {
     throw erroApp('CONFIG', 'O sistema ainda não foi configurado. Avise o Departamento Pessoal.');
   }
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), CONFIG.TIMEOUT_MS);
   let res;
   try {
-    res = await fetch(CONFIG.API_URL, {
+    res = await fetch(CONFIG.API_URL.trim(), {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action, ...payload }),
@@ -140,6 +140,19 @@ function focarPrimeiroErro(container) {
   if (alvo) alvo.focus();
 }
 
+function cpfValido(c) {
+  if (!/^\d{11}$/.test(c) || /^(\d)\1{10}$/.test(c)) return false;
+  for (let t = 9; t < 11; t++) {
+    let soma = 0;
+    for (let i = 0; i < t; i++) soma += Number(c[i]) * (t + 1 - i);
+    if (((soma * 10) % 11) % 10 !== Number(c[t])) return false;
+  }
+  return true;
+}
+function mascaraCpf(v) {
+  const d = so(v).slice(0, 11);
+  return d.replace(/^(\d{3})(\d)/, '$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d{1,2})$/, '.$1-$2');
+}
 const mascaraCep = v => { const d = so(v).slice(0, 8); return d.length > 5 ? d.slice(0, 5) + '-' + d.slice(5) : d; };
 function mascaraTel(v) {
   const d = so(v).slice(0, 11);
@@ -481,7 +494,7 @@ async function enviar() {
     $('#c-protocolo').textContent = r.protocolo;
     $('#c-data').textContent = r.dataHora;
     $('#c-nome').textContent = S.func.nome;
-    $('#c-mat').textContent = S.func.matricula;
+    $('#c-mat').textContent = S.func.cpfMascarado;
     irPara('protocolo');
   } catch (err) {
     tratarErroFunc(err, $('#envio-msg'));
@@ -496,22 +509,22 @@ async function enviar() {
 
 async function entrar(e) {
   e.preventDefault();
-  const mat = $('#l-matricula').value.trim();
-  const cod = $('#l-codigo').value.replace(/[^a-z0-9]/gi, '').toUpperCase();
-  const okM = marcarErro('l-matricula', mat ? '' : 'Informe sua matrícula.');
-  const okC = marcarErro('l-codigo', cod.length >= 6 ? '' : 'Informe o código de acesso.');
+  const nome = $('#l-nome').value.trim().replace(/\s+/g, ' ');
+  const cpf = so($('#l-cpf').value);
+  const okM = marcarErro('l-nome', nome.split(' ').length >= 2 ? '' : 'Informe nome e sobrenome.');
+  const okC = marcarErro('l-cpf', cpfValido(cpf) ? '' : 'CPF inválido. Confira os 11 números.');
   if (!okM || !okC) return focarPrimeiroErro($('#form-login'));
   mostrarMsg($('#login-msg'), '');
   carregando('Validando seu acesso…');
   try {
     if (!S.config) S.config = await api('config');
-    const r = await api('login', { matricula: mat, codigo: cod });
+    const r = await api('login', { nome, cpf });
     const mesmo = !!(S.func && S.func.id === r.id);
     S.token = r.token;
     S.func = r;
-    $('#l-codigo').value = '';
+    $('#l-cpf').value = '';
     $('#sessao-nome').textContent = r.nome;
-    $('#sessao-mat').textContent = 'Matrícula ' + r.matricula;
+    $('#sessao-mat').textContent = 'CPF ' + r.cpfMascarado;
     $('#sessao').hidden = false;
 
     if (r.bloqueada) { mostrarStatus(r.ultima); return irPara('status'); }
@@ -670,7 +683,6 @@ async function entrarRh(e) {
     $('#rh-login').hidden = true;
     $('#rh-painel').hidden = false;
     $('#rh-exportar').hidden = !pode('exportar');
-    $('#rh-codigos').hidden = !pode('codigos');
     await carregarLista();
   } catch (err) {
     mostrarMsg($('#rh-login-msg'), err.message, err.code === 'BLOQUEADO' ? 'alerta' : 'erro');
@@ -685,7 +697,6 @@ function sairRh(msg) {
   $('#rh-painel').hidden = true;
   $('#rh-login').hidden = false;
   $('#rh-tabela tbody').replaceChildren();
-  $('#codigo-resultado').hidden = true;
   const d = $('#dlg-detalhe');
   if (d.open) d.close();
   mostrarMsg($('#rh-login-msg'), msg || '', 'alerta');
@@ -738,7 +749,7 @@ function renderLista(r) {
     const link = el('button', { type: 'button', class: 'btn-link link-prot' }, it.protocolo);
     link.addEventListener('click', () => abrirDetalhe(it.protocolo));
     tb.append(el('tr', {},
-      celula('Protocolo', link), celula('Funcionário', it.nome), celula('Matrícula', it.matricula),
+      celula('Protocolo', link), celula('Funcionário', it.nome), celula('Matrícula', it.matricula || '—'),
       celula('Unidade', it.unidade || '—'), celula('Enviado em', fmtData(it.dataEnvio)), celula('Situação', badge(it.status))));
   });
   $('#rh-vazio').hidden = r.itens.length > 0;
@@ -777,7 +788,7 @@ function renderDetalhe({ registro: a, anterior: p, historico }) {
   corpo.replaceChildren();
 
   corpo.append(el('div', { class: 'det-meta' },
-    el('span', {}, 'Matrícula ' + a.matricula), el('span', {}, a.protocolo),
+    a.matricula ? el('span', {}, 'Matrícula ' + a.matricula) : null, el('span', {}, a.protocolo),
     el('span', {}, 'Enviado em ' + fmtData(a.dataEnvio)), a.unidade ? el('span', {}, a.unidade) : null, badge(a.status)));
 
   if (a.observacaoRh) {
@@ -913,31 +924,6 @@ async function exportarCsv() {
   }
 }
 
-async function gerarCodigo(e) {
-  e.preventDefault();
-  const matricula = $('#cod-matricula').value.trim();
-  if (!matricula) return toast('Informe a matrícula.', 'erro');
-  if (!(await confirmar(`Gerar um novo código para a matrícula ${matricula}? O código atual dela deixa de funcionar.`, 'Gerar código'))) return;
-  carregando('Gerando código…');
-  try {
-    const r = await api('adminCodigo', { token: A.token, matricula });
-    const box = $('#codigo-resultado');
-    const ocultar = el('button', { type: 'button', class: 'btn-link' }, 'Ocultar código');
-    ocultar.addEventListener('click', () => { box.hidden = true; box.replaceChildren(); });
-    box.replaceChildren(
-      el('p', {}, `${r.nome} (matrícula ${r.matricula})`),
-      el('p', { class: 'codigo' }, r.codigo),
-      el('p', { class: 'dica' }, `Válido até ${fmtData(r.expiraEm)}. Entregue pessoalmente ao funcionário: este código não será exibido de novo.`),
-      ocultar);
-    box.hidden = false;
-    $('#cod-matricula').value = '';
-  } catch (err) {
-    tratarErroRh(err);
-  } finally {
-    fimCarregando();
-  }
-}
-
 /* ---------- Inicialização ---------- */
 
 function ligarEventos() {
@@ -961,6 +947,7 @@ function ligarEventos() {
   $('#btn-enviar').addEventListener('click', enviar);
   $('#f-declaro').addEventListener('change', () => { $('#e-declaro').textContent = ''; });
 
+  $('#l-cpf').addEventListener('input', e => { e.target.value = mascaraCpf(e.target.value); });
   $('#f-cep').addEventListener('input', e => { e.target.value = mascaraCep(e.target.value); if (so(e.target.value).length === 8) buscarCep(); });
   ['f-tel1', 'f-tel2', 'f-tel3'].forEach(id => $('#' + id).addEventListener('input', e => { e.target.value = mascaraTel(e.target.value); }));
   $('#app-func').addEventListener('input', e => {
@@ -995,7 +982,6 @@ function ligarEventos() {
   $('#form-rh-filtros').addEventListener('submit', e => { e.preventDefault(); carregarLista(); });
   $('#rh-sair').addEventListener('click', () => sairRh());
   $('#rh-exportar').addEventListener('click', exportarCsv);
-  $('#form-codigo').addEventListener('submit', gerarCodigo);
   $$('#rh-stats .stat').forEach(b => b.addEventListener('click', () => {
     $('#rh-status').value = $('#rh-status').value === b.dataset.status ? '' : b.dataset.status;
     carregarLista();
