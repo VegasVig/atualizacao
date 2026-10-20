@@ -158,12 +158,17 @@ const fmtTam = v => v === NAO_USA ? 'Não usa' : (v || '');
 /* ---------- Fluxo do funcionário ---------- */
 
 function irPara(passo) {
+  if (passo === 'revisao') {
+    const pendente = ['endereco', 'telefones', 'uniforme', 'selfie'].find(p => !VALIDADORES[p]());
+    if (pendente) { passo = pendente; toast('Complete esta etapa antes de revisar.', 'erro'); }
+  }
   S.passo = passo;
   $$('#app-func .etapa').forEach(s => { s.hidden = s.dataset.etapa !== passo; });
   const i = PASSOS.indexOf(passo);
   const fim = passo === 'protocolo';
-  $('#trilha').hidden = passo === 'status';
-  $('.trilho').hidden = passo === 'status';
+  const semTrilha = passo === 'status' || passo === 'inicio';
+  $('#trilha').hidden = semTrilha;
+  $('.trilho').hidden = semTrilha;
   $$('#trilha li').forEach((li, j) => {
     li.classList.toggle('feito', fim || j < i);
     if (j === i) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
@@ -175,10 +180,11 @@ function irPara(passo) {
   $('#btn-continuar').hidden = passo === 'revisao';
   if (passo === 'selfie') atualizarSelfie();
   if (passo === 'revisao') montarResumo();
-  if (passo !== 'login' && passo !== 'status') $('#aviso-devolucao').hidden = !S.avisoDevolucao || fim;
+  if (!['login', 'status', 'inicio'].includes(passo)) $('#aviso-devolucao').hidden = !S.avisoDevolucao || fim;
   const h = $(`.etapa[data-etapa="${passo}"] h2`);
   const reduz = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  $('#app-func').scrollIntoView({ behavior: reduz ? 'auto' : 'smooth', block: 'start' });
+  if (S.iniciado) $('#app-func').scrollIntoView({ behavior: reduz ? 'auto' : 'smooth', block: 'start' });
+  S.iniciado = true;
   if (h) setTimeout(() => h.focus({ preventScroll: true }), 50);
 }
 
@@ -519,8 +525,9 @@ async function entrar(e) {
       aplicarUltima(r.ultima);
       preencherCampos();
     }
-    const destino = mesmo && S.retomar ? S.retomar : 'endereco';
+    const destino = mesmo && S.retomar ? S.retomar : (S.destino || 'endereco');
     S.retomar = null;
+    S.destino = null;
     irPara(destino);
   } catch (err) {
     mostrarMsg($('#login-msg'), err.message, err.code === 'BLOQUEADO' || err.code === 'CODIGO_EXPIRADO' ? 'alerta' : 'erro');
@@ -577,7 +584,12 @@ async function sair(perguntar = true) {
   $('#form-login').reset();
   preencherCampos();
   mostrarMsg($('#login-msg'), '');
-  irPara('login');
+  irPara('inicio');
+}
+
+function comecar(passo) {
+  S.destino = passo;
+  if (S.token) { S.destino = null; irPara(passo); } else irPara('login');
 }
 
 /* ---------- Painel do RH ---------- */
@@ -890,6 +902,9 @@ function ligarEventos() {
   $('#f-uf').append(...UFS.map(u => el('option', { value: u }, u)));
 
   $('#form-login').addEventListener('submit', entrar);
+  $$('.card[data-ir]').forEach(c => c.addEventListener('click', () => comecar(c.dataset.ir)));
+  $('#btn-iniciar').addEventListener('click', () => comecar('endereco'));
+  $('#btn-login-voltar').addEventListener('click', () => irPara('inicio'));
   $('#btn-continuar').addEventListener('click', continuar);
   $('#btn-voltar').addEventListener('click', voltar);
   $('#btn-sair').addEventListener('click', () => sair(true));
@@ -948,7 +963,7 @@ function ligarEventos() {
 async function iniciar() {
   ligarEventos();
   rota();
-  irPara('login');
+  irPara('inicio');
   try {
     S.config = await api('config');
     montarUniforme();
