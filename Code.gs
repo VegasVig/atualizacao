@@ -5,8 +5,6 @@ const CFG = {
   SESSAO_ADMIN_SEG: 3600,
   MAX_TENTATIVAS: 5,
   BLOQUEIO_SEG: 900,
-  CODIGO_TAMANHO: 8,
-  CODIGO_VALIDADE_DIAS: 30,
   FOTO_OBRIGATORIA: true,
   FOTO_MAX_BYTES: 700 * 1024,
   FOTO_MIN_BYTES: 4 * 1024,
@@ -31,13 +29,13 @@ const TRANSICOES = {
 };
 
 const PERMISSOES = {
-  GESTOR: ['ver', 'analisar', 'foto', 'exportar', 'codigos'],
+  GESTOR: ['ver', 'analisar', 'foto', 'exportar'],
   ANALISTA: ['ver', 'analisar', 'foto', 'exportar'],
   LEITURA: ['ver']
 };
 
 const ABAS = {
-  FUNCIONARIOS: ['ID_FUNCIONARIO', 'MATRICULA', 'NOME_COMPLETO', 'STATUS', 'EMAIL_CORPORATIVO', 'HASH_CREDENCIAL', 'DATA_CADASTRO', 'UNIDADE', 'CODIGO_EXPIRA_EM'],
+  FUNCIONARIOS: ['ID_FUNCIONARIO', 'MATRICULA', 'NOME_COMPLETO', 'CPF', 'CPF_HASH', 'STATUS', 'EMAIL_CORPORATIVO', 'DATA_CADASTRO', 'UNIDADE'],
   ATUALIZACOES: ['ID_ATUALIZACAO', 'PROTOCOLO', 'ID_FUNCIONARIO', 'MATRICULA', 'NOME_COMPLETO', 'UNIDADE',
     'CEP', 'LOGRADOURO', 'NUMERO', 'COMPLEMENTO', 'BAIRRO', 'CIDADE', 'UF', 'PONTO_REFERENCIA',
     'TELEFONE_PRINCIPAL', 'TELEFONE_ALTERNATIVO', 'CONTATO_EMERGENCIA', 'TELEFONE_EMERGENCIA',
@@ -79,8 +77,7 @@ const ROTAS = {
   adminDetalhe: adminDetalhe_,
   adminFoto: adminFoto_,
   adminStatus: adminStatus_,
-  adminExportar: adminExportar_,
-  adminCodigo: adminCodigo_
+  adminExportar: adminExportar_
 };
 
 function doGet() {
@@ -116,26 +113,37 @@ function config_() {
 }
 
 function login_(req) {
-  const matricula = normMatricula_(req.matricula);
-  const codigo = normCodigo_(req.codigo);
-  if (!matricula || codigo.length < 6) throw new ErroApp('DADOS_INVALIDOS', 'Informe matrícula e código de acesso.');
-  const chave = 'f:' + matricula;
+  const cpf = so_(req.cpf);
+  const nome = limpar_(req.nome).slice(0, 120);
+  if (!cpfValido_(cpf) || tokensNome_(nome).length < 2) {
+    throw new ErroApp('DADOS_INVALIDOS', 'Informe seu nome completo e um CPF válido.');
+  }
+  const hash = hashCpf_(cpf);
+  const chave = 'c:' + hash;
   checarBloqueio_(chave);
 
-  const f = ler_('FUNCIONARIOS').rows.find(r => normMatricula_(r.MATRICULA) === matricula);
-  const valido = !!f && ativo_(f) && !!texto_(f.HASH_CREDENCIAL) && conferirHash_(codigo, texto_(f.HASH_CREDENCIAL));
-  if (!f) hashSegredo_(codigo, 'equalizacao');
-  if (!valido) {
-    registrarFalha_(chave);
-    throw new ErroApp('CREDENCIAIS', 'Matrícula ou código de acesso incorretos.');
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) throw new ErroApp('OCUPADO', 'Muitos acessos ao mesmo tempo. Tente de novo em alguns segundos.');
+  let f;
+  try {
+    f = ler_('FUNCIONARIOS').rows.find(r => cpfConfere_(r, cpf, hash));
+    if (!f) {
+      f = { ID_FUNCIONARIO: novoIdFuncionario_(), NOME_COMPLETO: nome, CPF: cpf, CPF_HASH: hash, STATUS: 'ATIVO', DATA_CADASTRO: agora_() };
+      anexar_('FUNCIONARIOS', f);
+      registrarEvento_('', f.ID_FUNCIONARIO, 'AUTOCADASTRO', 'FUNCIONARIO', '');
+    }
+  } finally {
+    lock.releaseLock();
   }
-  const expira = texto_(f.CODIGO_EXPIRA_EM);
-  if (expira && expira < agora_()) {
-    throw new ErroApp('CODIGO_EXPIRADO', 'Seu código de acesso expirou. Peça um novo ao Departamento Pessoal.');
+
+  if (!ativo_(f)) throw new ErroApp('NAO_AUTORIZADO', 'Seu acesso está bloqueado. Procure o Departamento Pessoal.');
+  if (!nomeConfere_(nome, texto_(f.NOME_COMPLETO))) {
+    registrarFalha_(chave);
+    throw new ErroApp('CREDENCIAIS', 'Este CPF já está registrado com outro nome. Confira como você escreveu o nome ou procure o Departamento Pessoal.');
   }
   limparFalhas_(chave);
   const token = criarSessao_({ tipo: 'F', id: texto_(f.ID_FUNCIONARIO), ttl: CFG.SESSAO_FUNC_SEG });
-  return Object.assign({ token }, perfilFuncionario_(f));
+  return Object.assign({ token, cpfMascarado: '***.' + cpf.slice(3, 6) + '.' + cpf.slice(6, 9) + '-**' }, perfilFuncionario_(f));
 }
 
 function me_(req) {
@@ -293,7 +301,9 @@ function adminDetalhe_(req) {
     .filter(h => texto_(h.PROTOCOLO) === prot)
     .map(h => ({ acao: texto_(h.ACAO), dataHora: texto_(h.DATA_HORA), responsavel: texto_(h.RESPONSAVEL), observacao: texto_(h.OBSERVACAO) }))
     .sort((a, b) => a.dataHora.localeCompare(b.dataHora));
-  return { registro: publicoAdmin_(r), anterior: anterior ? publicoAdmin_(anterior) : null, historico };
+  const registro = publicoAdmin_(r);
+  registro.cpf = formatarCpf_(cpfDe_(funcionarioPorId_(id)));
+  return { registro, anterior: anterior ? publicoAdmin_(anterior) : null, historico };
 }
 
 function adminFoto_(req) {
@@ -347,35 +357,13 @@ function adminExportar_(req) {
   const t = ler_('ATUALIZACOES');
   const lista = ordenarDesc_(filtrar_(t.rows, req.filtros || {}));
   const cab = t.headers.filter(h => ['ID_ATUALIZACAO', 'REQUEST_ID', 'FOTO_URL_RESTRITA'].indexOf(h) < 0);
+  const cpfs = {};
+  ler_('FUNCIONARIOS').rows.forEach(f => { cpfs[texto_(f.ID_FUNCIONARIO)] = formatarCpf_(cpfDe_(f)); });
   registrarEvento_('', '', 'EXPORTACAO_CSV', s.usuario, lista.length + ' registro(s)');
-  return { cabecalho: cab, linhas: lista.map(r => cab.map(h => texto_(r[h]))) };
-}
-
-function adminCodigo_(req) {
-  const s = sessaoAdmin_(req.token, 'codigos');
-  const matricula = normMatricula_(req.matricula);
-  if (!matricula) throw new ErroApp('DADOS_INVALIDOS', 'Informe a matrícula.');
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(20000)) throw new ErroApp('OCUPADO', 'Sistema ocupado. Tente de novo em alguns segundos.');
-  try {
-    const t = ler_('FUNCIONARIOS');
-    const f = t.rows.find(r => normMatricula_(r.MATRICULA) === matricula);
-    if (!f) throw new ErroApp('NAO_ENCONTRADO', 'Matrícula não encontrada na aba FUNCIONARIOS.');
-    if (!ativo_(f)) throw new ErroApp('INATIVO', 'Este funcionário não está com STATUS = ATIVO.');
-    const codigo = aleatorio_(CFG.CODIGO_TAMANHO);
-    const expira = formatar_(new Date(Date.now() + CFG.CODIGO_VALIDADE_DIAS * 864e5));
-    const campos = { HASH_CREDENCIAL: gerarHash_(codigo), CODIGO_EXPIRA_EM: expira };
-    let id = texto_(f.ID_FUNCIONARIO);
-    if (!id) { id = novoIdFuncionario_(); campos.ID_FUNCIONARIO = id; }
-    if (!texto_(f.DATA_CADASTRO)) campos.DATA_CADASTRO = agora_();
-    atualizarCampos_(t, f._linha, campos);
-    SpreadsheetApp.flush();
-    limparFalhas_('f:' + matricula);
-    registrarEvento_('', id, 'CODIGO_REDEFINIDO', s.usuario, '');
-    return { matricula, nome: texto_(f.NOME_COMPLETO), codigo: formatarCodigo_(codigo), expiraEm: expira };
-  } finally {
-    lock.releaseLock();
-  }
+  return {
+    cabecalho: ['CPF'].concat(cab),
+    linhas: lista.map(r => [cpfs[texto_(r.ID_FUNCIONARIO)] || ''].concat(cab.map(h => texto_(r[h]))))
+  };
 }
 
 /* ---------- Regras de negócio ---------- */
@@ -529,12 +517,19 @@ function filtrar_(rows, f) {
   const reData = /^\d{4}-\d{2}-\d{2}$/;
   const de = reData.test(f.de) ? f.de : '';
   const ate = reData.test(f.ate) ? f.ate : '';
+  const digitos = so_(f.texto);
+  let idsCpf = null;
+  if (digitos.length === 11 && cpfValido_(digitos)) {
+    const h = hashCpf_(digitos);
+    idsCpf = new Set(ler_('FUNCIONARIOS').rows.filter(r => cpfConfere_(r, digitos, h)).map(r => texto_(r.ID_FUNCIONARIO)));
+  }
   return rows.filter(r => {
     if (st && texto_(r.STATUS_ANALISE) !== st) return false;
     if (un && texto_(r.UNIDADE) !== un) return false;
     const dia = texto_(r.DATA_ENVIO).slice(0, 10);
     if (de && dia < de) return false;
     if (ate && dia > ate) return false;
+    if (idsCpf) return idsCpf.has(texto_(r.ID_FUNCIONARIO));
     if (txt && norm_([r.PROTOCOLO, r.MATRICULA, r.NOME_COMPLETO].map(texto_).join(' ')).indexOf(txt) < 0) return false;
     return true;
   });
@@ -563,6 +558,47 @@ function gerarProtocolo_(existentes) {
 }
 
 /* ---------- Segurança ---------- */
+
+function cpfValido_(c) {
+  if (!/^\d{11}$/.test(c) || /^(\d)\1{10}$/.test(c)) return false;
+  for (let t = 9; t < 11; t++) {
+    let soma = 0;
+    for (let i = 0; i < t; i++) soma += Number(c[i]) * (t + 1 - i);
+    if (((soma * 10) % 11) % 10 !== Number(c[t])) return false;
+  }
+  return true;
+}
+
+function hashCpf_(cpf) {
+  return Utilities.base64Encode(Utilities.computeHmacSha256Signature(cpf, prop_('PEPPER') || '', Utilities.Charset.UTF_8));
+}
+
+function cpfDe_(f) {
+  const d = so_(f && f.CPF);
+  return d ? d.padStart(11, '0') : '';
+}
+
+function formatarCpf_(c) {
+  return c ? c.slice(0, 3) + '.' + c.slice(3, 6) + '.' + c.slice(6, 9) + '-' + c.slice(9) : '';
+}
+
+function cpfConfere_(r, cpf, hash) {
+  if (texto_(r.CPF_HASH)) return texto_(r.CPF_HASH) === hash;
+  const bruto = so_(r.CPF);
+  return !!bruto && bruto.padStart(11, '0') === cpf;
+}
+
+const PARTICULAS = ['de', 'da', 'do', 'das', 'dos', 'e', 'di', 'du'];
+function tokensNome_(s) {
+  return norm_(s).replace(/[^a-z ]/g, ' ').split(/\s+/).filter(t => t && PARTICULAS.indexOf(t) < 0);
+}
+
+function nomeConfere_(digitado, cadastro) {
+  const d = tokensNome_(digitado);
+  const c = tokensNome_(cadastro);
+  return d.length >= 2 && c.length > 0 && d[0] === c[0] &&
+    (d.every(t => c.indexOf(t) >= 0) || c.every(t => d.indexOf(t) >= 0));
+}
 
 function hashSegredo_(segredo, salt) {
   let h = salt + '|' + segredo + '|' + (prop_('PEPPER') || '');
@@ -732,10 +768,8 @@ function sim_(v) { return /^(sim|s|true|1|x)$/i.test(texto_(v)); }
 function ativo_(f) { return texto_(f.STATUS).toUpperCase() === 'ATIVO'; }
 function norm_(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim(); }
 function normMatricula_(v) { return texto_(v).replace(/\s/g, '').slice(0, 20); }
-function normCodigo_(v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16); }
 function formatar_(d) { return Utilities.formatDate(d, CFG.FUSO, 'yyyy-MM-dd HH:mm:ss'); }
 function agora_() { return formatar_(new Date()); }
-function formatarCodigo_(c) { return c.slice(0, 4) + '-' + c.slice(4); }
 function novoIdFuncionario_() { return 'F' + aleatorio_(9); }
 function maisRecente_(rows) { return ordenarDesc_(rows)[0] || null; }
 function ordenarDesc_(rows) { return rows.slice().sort((a, b) => texto_(b.DATA_ENVIO).localeCompare(texto_(a.DATA_ENVIO)) || b._linha - a._linha); }
@@ -746,7 +780,6 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('Vegas RH')
     .addItem('1. Configurar estrutura', 'configurarEstrutura')
     .addItem('2. Criar ou redefinir usuário do RH', 'menuCriarAdmin')
-    .addItem('3. Gerar códigos para quem não tem', 'menuGerarCodigos')
     .addSeparator()
     .addItem('Limpar fotos fora da retenção e órfãs', 'limparFotosAntigas')
     .addToUi();
@@ -834,46 +867,6 @@ function menuCriarAdmin() {
     ui.alert('Usuário ' + usuario + ' salvo com perfil ' + perfil + '.');
   } catch (e) {
     if (e.message !== 'cancelado') throw e;
-  }
-}
-
-function menuGerarCodigos() {
-  const ui = SpreadsheetApp.getUi();
-  preencherIdsFaltantes_();
-  const t = ler_('FUNCIONARIOS');
-  const alvos = t.rows.filter(r => ativo_(r) && texto_(r.MATRICULA) && !texto_(r.HASH_CREDENCIAL));
-  if (!alvos.length) return ui.alert('Nenhum funcionário ATIVO sem código.');
-  if (ui.alert('Gerar código de acesso para ' + alvos.length + ' funcionário(s)?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    const cH = t.headers.indexOf('HASH_CREDENCIAL');
-    const cE = t.headers.indexOf('CODIGO_EXPIRA_EM');
-    const n = t.sh.getLastRow() - 1;
-    const hashes = t.sh.getRange(2, cH + 1, n, 1).getValues();
-    const expiras = t.sh.getRange(2, cE + 1, n, 1).getValues();
-    const expira = formatar_(new Date(Date.now() + CFG.CODIGO_VALIDADE_DIAS * 864e5));
-    const lista = [];
-    alvos.forEach(r => {
-      const codigo = aleatorio_(CFG.CODIGO_TAMANHO);
-      hashes[r._linha - 2][0] = gerarHash_(codigo);
-      expiras[r._linha - 2][0] = expira;
-      lista.push([texto_(r.MATRICULA), texto_(r.NOME_COMPLETO), texto_(r.UNIDADE), formatarCodigo_(codigo), expira]);
-    });
-    t.sh.getRange(2, cH + 1, n, 1).setValues(hashes);
-    t.sh.getRange(2, cE + 1, n, 1).setValues(expiras);
-    SpreadsheetApp.flush();
-
-    const arq = SpreadsheetApp.create('VEGAS_CODIGOS_ACESSO_' + Utilities.formatDate(new Date(), CFG.FUSO, 'yyyyMMdd-HHmm') + '_EXCLUIR_APOS_ENTREGA');
-    const sh = arq.getSheets()[0];
-    sh.getRange(1, 1, 1, 5).setValues([['MATRICULA', 'NOME', 'UNIDADE', 'CODIGO', 'VALIDO_ATE']]).setFontWeight('bold');
-    sh.getRange(2, 1, lista.length, 5).setNumberFormat('@').setValues(lista);
-    registrarEvento_('', '', 'CODIGOS_GERADOS_LOTE', Session.getEffectiveUser().getEmail() || 'editor', lista.length + ' código(s)');
-    ui.alert('Códigos gerados: ' + lista.length + '.\n\nArquivo privado no seu Drive:\n' + arq.getUrl() +
-      '\n\nEntregue individualmente e EXCLUA esse arquivo (e esvazie a lixeira) após a distribuição.');
-  } finally {
-    lock.releaseLock();
   }
 }
 

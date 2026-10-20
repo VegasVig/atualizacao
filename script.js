@@ -1,7 +1,7 @@
 'use strict';
 
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbzdIq3TpUJYYOP9vC9vfAyNYrDNreZPJKeV-ShGoeDRtZSHSmMuBoTD0U-n5aN0TJ3u/exec',
+  API_URL: 'COLE_AQUI_A_URL_DO_APP_DA_WEB',
   FOTO_LADOS: [960, 720],
   FOTO_QUALIDADES: [0.86, 0.78, 0.7, 0.62, 0.55],
   TIMEOUT_MS: 45000
@@ -788,7 +788,7 @@ function renderDetalhe({ registro: a, anterior: p, historico }) {
   corpo.replaceChildren();
 
   corpo.append(el('div', { class: 'det-meta' },
-    a.matricula ? el('span', {}, 'Matrícula ' + a.matricula) : null, el('span', {}, a.protocolo),
+    a.cpf ? el('span', {}, 'CPF ' + a.cpf) : null, a.matricula ? el('span', {}, 'Matrícula ' + a.matricula) : null, el('span', {}, a.protocolo),
     el('span', {}, 'Enviado em ' + fmtData(a.dataEnvio)), a.unidade ? el('span', {}, a.unidade) : null, badge(a.status)));
 
   if (a.observacaoRh) {
