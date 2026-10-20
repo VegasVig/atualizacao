@@ -1,7 +1,7 @@
 'use strict';
 
 const CONFIG = {
-  API_URL: 'COLE_AQUI_A_URL_DO_APP_DA_WEB',
+  API_URL: 'https://script.google.com/macros/s/AKfycbzdIq3TpUJYYOP9vC9vfAyNYrDNreZPJKeV-ShGoeDRtZSHSmMuBoTD0U-n5aN0TJ3u/exec',
   FOTO_LADOS: [960, 720],
   FOTO_QUALIDADES: [0.86, 0.78, 0.7, 0.62, 0.55],
   TIMEOUT_MS: 45000
