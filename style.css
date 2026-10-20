@@ -810,7 +810,7 @@ body.modo-rh .faixa { display: none; }
     content: "";
     position: absolute;
     inset: -40px;
-    background: url("assets/painel-capa.jpg") center / cover no-repeat;
+    background: url("assets/painel-capa.png") center / cover no-repeat;
     filter: blur(28px) brightness(.4);
   }
 }
