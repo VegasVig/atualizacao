@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#08090C">
+<title>Atualização Cadastral | Vegas Vigilância e Segurança</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wdth,wght@75..125,400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="fundo" aria-hidden="true"></div>
+
+<header class="topo">
+  <a class="marca" href="./" aria-label="Vegas Vigilância e Segurança, página inicial">
+    <img id="logo" src="assets/logo-vegas.png" alt="Vegas Vigilância e Segurança" width="320" height="120">
+    <span class="marca-texto" hidden><span class="marca-nome">VEGAS</span><span class="marca-sub">Vigilância e Segurança</span></span>
+  </a>
+  <div class="sessao" id="sessao" hidden>
+    <div class="sessao-id"><strong id="sessao-nome"></strong><span id="sessao-mat"></span></div>
+    <button type="button" class="btn-link" id="btn-sair">Sair</button>
+  </div>
+</header>
+
+<main>
+  <section class="painel" id="app-func" aria-labelledby="titulo">
+    <div class="painel-cab">
+      <h1 id="titulo">ATUALIZAÇÃO CADASTRAL</h1>
+      <p class="sub">Mantenha seus dados atualizados. Suas informações são importantes para nós.</p>
+    </div>
+
+    <ol class="trilha" id="trilha" aria-label="Etapas do preenchimento">
+      <li data-passo="login"><span class="num">1</span><span class="rotulo">Identificação</span></li>
+      <li data-passo="endereco"><span class="num">2</span><span class="rotulo">Endereço</span></li>
+      <li data-passo="telefones"><span class="num">3</span><span class="rotulo">Telefones</span></li>
+      <li data-passo="uniforme"><span class="num">4</span><span class="rotulo">Uniforme</span></li>
+      <li data-passo="selfie"><span class="num">5</span><span class="rotulo">Selfie</span></li>
+      <li data-passo="revisao"><span class="num">6</span><span class="rotulo">Revisão</span></li>
+    </ol>
+    <div class="trilho" aria-hidden="true"><div class="trilho-barra" id="trilho-barra"></div></div>
+
+    <div id="aviso-devolucao" class="aviso aviso-alerta" role="status" hidden></div>
+
+    <section class="etapa" data-etapa="login">
+      <h2 tabindex="-1">Identificação</h2>
+      <p class="guia">Entre com a sua matrícula e o código de acesso entregue pelo Departamento Pessoal.</p>
+      <form id="form-login" class="form-estreito" novalidate>
+        <div class="campo">
+          <label for="l-matricula">Matrícula</label>
+          <input id="l-matricula" name="matricula" inputmode="numeric" autocomplete="username" maxlength="20" required>
+          <p class="erro" id="e-l-matricula"></p>
+        </div>
+        <div class="campo">
+          <label for="l-codigo">Código de acesso</label>
+          <input id="l-codigo" name="codigo" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="ABCD-1234" required>
+          <p class="erro" id="e-l-codigo"></p>
+        </div>
+        <details class="privacidade">
+          <summary>Como seus dados são tratados</summary>
+          <p><strong>Finalidade:</strong> manter atualizados endereço, telefones, tamanhos de uniforme e foto funcional para a gestão do seu contrato de trabalho, comunicação com você e entrega de uniformes.</p>
+          <p><strong>Quem acessa:</strong> somente a equipe autorizada do Departamento Pessoal. Nada é publicado na internet e a foto não é usada para reconhecimento facial.</p>
+          <p><strong>Retenção:</strong> [DEFINIR PRAZO COM O ENCARREGADO DE DADOS].</p>
+          <p><strong>Dúvidas ou pedidos sobre seus dados:</strong> [E-MAIL OU TELEFONE DO ENCARREGADO / DP].</p>
+        </details>
+        <div id="login-msg" class="msg" aria-live="polite"></div>
+        <button class="btn btn-metal btn-largo" type="submit">Entrar</button>
+      </form>
+    </section>
+
+    <section class="etapa" data-etapa="status" hidden>
+      <h2 tabindex="-1">Sua atualização está em análise</h2>
+      <p class="guia">O Departamento Pessoal ainda está conferindo o seu último envio. Quando ele for analisado, você poderá enviar uma nova atualização.</p>
+      <dl class="dados-lista" id="status-dados"></dl>
+      <button type="button" class="btn" id="btn-status-sair">Sair</button>
+    </section>
+
+    <section class="etapa" data-etapa="endereco" hidden>
+      <h2 tabindex="-1">Endereço residencial</h2>
+      <p class="guia">Digite o CEP e confira o endereço que aparecer.</p>
+      <div class="grade">
+        <div class="campo c-2">
+          <label for="f-cep">CEP</label>
+          <input id="f-cep" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="00000-000">
+          <p class="dica" id="cep-status" aria-live="polite"></p>
+          <p class="erro" id="e-f-cep"></p>
+        </div>
+        <div class="campo c-4">
+          <label for="f-logradouro">Rua ou avenida</label>
+          <input id="f-logradouro" autocomplete="address-line1" maxlength="120">
+          <p class="erro" id="e-f-logradouro"></p>
+        </div>
+        <div class="campo c-2">
+          <label for="f-numero">Número</label>
+          <input id="f-numero" maxlength="10" placeholder="ou S/N">
+          <p class="erro" id="e-f-numero"></p>
+        </div>
+        <div class="campo c-4">
+          <label for="f-complemento">Complemento <span class="opcional">(opcional)</span></label>
+          <input id="f-complemento" autocomplete="address-line2" maxlength="60" placeholder="Casa 2, apto 101, bloco B">
+        </div>
+        <div class="campo c-3">
+          <label for="f-bairro">Bairro</label>
+          <input id="f-bairro" maxlength="60">
+          <p class="erro" id="e-f-bairro"></p>
+        </div>
+        <div class="campo c-2">
+          <label for="f-cidade">Cidade</label>
+          <input id="f-cidade" autocomplete="address-level2" maxlength="60">
+          <p class="erro" id="e-f-cidade"></p>
+        </div>
+        <div class="campo c-1">
+          <label for="f-uf">UF</label>
+          <select id="f-uf" autocomplete="address-level1"><option value="">--</option></select>
+          <p class="erro" id="e-f-uf"></p>
+        </div>
+        <div class="campo c-6">
+          <label for="f-referencia">Ponto de referência <span class="opcional">(opcional)</span></label>
+          <input id="f-referencia" maxlength="120" placeholder="Próximo à padaria, em frente à praça">
+        </div>
+      </div>
+    </section>
+
+    <section class="etapa" data-etapa="telefones" hidden>
+      <h2 tabindex="-1">Telefones de contato</h2>
+      <p class="guia">O celular principal é o número que o Departamento Pessoal vai usar para falar com você.</p>
+      <div class="grade">
+        <div class="campo c-3">
+          <label for="f-tel1">Celular principal</label>
+          <input id="f-tel1" type="tel" inputmode="tel" autocomplete="tel-national" maxlength="15" placeholder="(24) 99999-9999">
+          <p class="erro" id="e-f-tel1"></p>
+        </div>
+        <div class="campo c-3">
+          <label for="f-tel2">Telefone alternativo <span class="opcional">(opcional)</span></label>
+          <input id="f-tel2" type="tel" inputmode="tel" maxlength="15">
+          <p class="erro" id="e-f-tel2"></p>
+        </div>
+        <div class="campo c-6 separador"><span>Contato de emergência <span class="opcional">(opcional)</span></span></div>
+        <div class="campo c-3">
+          <label for="f-contato">Nome do contato</label>
+          <input id="f-contato" maxlength="60" autocomplete="off" placeholder="Ex.: Ana (esposa)">
+          <p class="erro" id="e-f-contato"></p>
+        </div>
+        <div class="campo c-3">
+          <label for="f-tel3">Telefone do contato</label>
+          <input id="f-tel3" type="tel" inputmode="tel" maxlength="15" autocomplete="off">
+          <p class="erro" id="e-f-tel3"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="etapa" data-etapa="uniforme" hidden>
+      <h2 tabindex="-1">Tamanhos do uniforme</h2>
+      <p class="guia">Escolha o tamanho que você usa hoje. Se não usa alguma peça, marque "Não uso".</p>
+      <div id="lista-pecas"></div>
+    </section>
+
+    <section class="etapa" data-etapa="selfie" hidden>
+      <h2 tabindex="-1">Selfie atualizada</h2>
+      <p class="guia">Rosto de frente, sem boné e sem óculos escuros, em lugar bem iluminado.</p>
+      <div class="selfie-area">
+        <div class="selfie-moldura" id="selfie-moldura">
+          <img id="selfie-preview" alt="Prévia da sua selfie" hidden>
+          <svg id="selfie-vazia" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="24" r="11" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M12 54c3-11 11-16 20-16s17 5 20 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        </div>
+        <div class="selfie-acoes">
+          <button type="button" class="btn btn-metal" id="btn-camera">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <span id="txt-camera">Tirar selfie</span>
+          </button>
+          <button type="button" class="btn" id="btn-galeria">Escolher foto do aparelho</button>
+          <button type="button" class="btn-link" id="btn-remover-foto" hidden>Remover foto</button>
+          <label class="opcao-check" id="opcao-manter" hidden>
+            <input type="checkbox" id="f-manter-foto">
+            <span>Manter a foto que já está no meu cadastro</span>
+          </label>
+          <p class="dica" id="selfie-info" aria-live="polite"></p>
+          <p class="erro" id="e-selfie"></p>
+        </div>
+      </div>
+      <input type="file" id="f-arquivo" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden>
+      <input type="file" id="f-camera" accept="image/*" capture="user" hidden>
+    </section>
+
+    <section class="etapa" data-etapa="revisao" hidden>
+      <h2 tabindex="-1">Revise antes de enviar</h2>
+      <p class="guia">Confira tudo. Se algo estiver errado, toque em "Alterar".</p>
+      <div id="resumo"></div>
+      <label class="declaracao">
+        <input type="checkbox" id="f-declaro">
+        <span>Declaro que as informações acima são verdadeiras e estou ciente de que serão analisadas pelo Departamento Pessoal.</span>
+      </label>
+      <p class="erro" id="e-declaro"></p>
+      <div id="envio-msg" class="msg" aria-live="polite"></div>
+      <button type="button" class="btn btn-metal btn-largo btn-enviar" id="btn-enviar">CONFIRMAR E ENVIAR ATUALIZAÇÃO</button>
+    </section>
+
+    <section class="etapa" data-etapa="protocolo" hidden>
+      <div class="comprovante" id="comprovante">
+        <svg class="selo" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M20 33l8 8 16-17" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h2 tabindex="-1">Atualização recebida</h2>
+        <p class="guia">Seus dados foram enviados para análise do Departamento Pessoal da Vegas Vigilância.</p>
+        <p class="protocolo-rotulo">Número do protocolo</p>
+        <p class="protocolo" id="c-protocolo"></p>
+        <dl class="dados-lista dados-centro">
+          <dt>Funcionário</dt><dd id="c-nome"></dd>
+          <dt>Matrícula</dt><dd id="c-mat"></dd>
+          <dt>Enviado em</dt><dd id="c-data"></dd>
+        </dl>
+        <p class="nota">Este comprovante confirma o recebimento. A aprovação dos dados é feita pelo Departamento Pessoal.</p>
+      </div>
+      <div class="acoes-comprovante">
+        <button type="button" class="btn btn-metal" id="btn-imprimir">Imprimir ou salvar em PDF</button>
+        <button type="button" class="btn" id="btn-encerrar">Encerrar</button>
+      </div>
+    </section>
+
+    <nav class="nav-etapas" id="nav" aria-label="Navegação entre etapas" hidden>
+      <button type="button" class="btn" id="btn-voltar">Voltar</button>
+      <button type="button" class="btn btn-metal" id="btn-continuar">Continuar</button>
+    </nav>
+  </section>
+
+  <section class="painel painel-rh" id="app-rh" aria-labelledby="rh-titulo" hidden>
+    <div class="painel-cab">
+      <h1 id="rh-titulo">Atualizações cadastrais</h1>
+      <p class="sub">Área restrita do Departamento Pessoal.</p>
+    </div>
+
+    <div id="rh-login">
+      <form id="form-rh-login" class="form-estreito" novalidate>
+        <div class="campo">
+          <label for="rh-usuario-in">Usuário</label>
+          <input id="rh-usuario-in" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="40">
+        </div>
+        <div class="campo">
+          <label for="rh-senha-in">Senha</label>
+          <input id="rh-senha-in" type="password" autocomplete="current-password" maxlength="100">
+        </div>
+        <div id="rh-login-msg" class="msg" aria-live="polite"></div>
+        <button class="btn btn-metal btn-largo" type="submit">Entrar</button>
+      </form>
+      <p class="voltar-func"><a href="#" class="btn-link">Ir para a atualização cadastral do funcionário</a></p>
+    </div>
+
+    <div id="rh-painel" hidden>
+      <div class="rh-barra">
+        <span id="rh-quem"></span>
+        <button type="button" class="btn-link" id="rh-sair">Sair</button>
+      </div>
+
+      <div class="rh-stats" id="rh-stats">
+        <button type="button" class="stat" data-status="PENDENTE" aria-pressed="false"><strong>0</strong><span>Pendentes</span></button>
+        <button type="button" class="stat" data-status="EM_ANALISE" aria-pressed="false"><strong>0</strong><span>Em análise</span></button>
+        <button type="button" class="stat" data-status="APROVADA" aria-pressed="false"><strong>0</strong><span>Aprovadas</span></button>
+        <button type="button" class="stat" data-status="DEVOLVIDA_PARA_CORRECAO" aria-pressed="false"><strong>0</strong><span>Devolvidas</span></button>
+      </div>
+
+      <form id="form-rh-filtros" class="rh-filtros" novalidate>
+        <div class="campo f-busca">
+          <label for="rh-busca">Buscar</label>
+          <input id="rh-busca" type="search" placeholder="Nome, matrícula ou protocolo" maxlength="80">
+        </div>
+        <div class="campo">
+          <label for="rh-status">Situação</label>
+          <select id="rh-status">
+            <option value="">Todas</option>
+            <option value="PENDENTE">Pendente</option>
+            <option value="EM_ANALISE">Em análise</option>
+            <option value="APROVADA">Aprovada</option>
+            <option value="DEVOLVIDA_PARA_CORRECAO">Devolvida</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="rh-unidade">Unidade</label>
+          <select id="rh-unidade"><option value="">Todas</option></select>
+        </div>
+        <div class="campo">
+          <label for="rh-de">De</label>
+          <input id="rh-de" type="date">
+        </div>
+        <div class="campo">
+          <label for="rh-ate">Até</label>
+          <input id="rh-ate" type="date">
+        </div>
+        <button type="submit" class="btn btn-metal">Filtrar</button>
+      </form>
+
+      <div class="rh-lista-cab">
+        <span id="rh-total" aria-live="polite"></span>
+        <button type="button" class="btn" id="rh-exportar" hidden>Exportar CSV</button>
+      </div>
+      <div class="tabela-wrap">
+        <table class="tabela" id="rh-tabela">
+          <thead><tr><th scope="col">Protocolo</th><th scope="col">Funcionário</th><th scope="col">Matrícula</th><th scope="col">Unidade</th><th scope="col">Enviado em</th><th scope="col">Situação</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p id="rh-vazio" class="vazio" hidden>Nenhuma atualização encontrada com esses filtros.</p>
+
+      <section id="rh-codigos" class="rh-codigos" hidden aria-labelledby="rh-cod-titulo">
+        <h2 id="rh-cod-titulo">Código de acesso do funcionário</h2>
+        <p class="guia">Gere um novo código quando o funcionário perder o dele ou quando o código expirar. O código anterior para de funcionar na hora.</p>
+        <form id="form-codigo" class="linha-form" novalidate>
+          <div class="campo">
+            <label for="cod-matricula">Matrícula</label>
+            <input id="cod-matricula" inputmode="numeric" maxlength="20">
+          </div>
+          <button type="submit" class="btn">Gerar novo código</button>
+        </form>
+        <div id="codigo-resultado" class="codigo-resultado" hidden></div>
+      </section>
+    </div>
+  </section>
+</main>
+
+<footer class="rodape">
+  <p>Vegas Vigilância e Segurança — Departamento Pessoal</p>
+  <a href="#rh" class="link-rh">Acesso do Departamento Pessoal</a>
+</footer>
+
+<dialog id="dlg-camera" aria-labelledby="cam-titulo">
+  <div class="dlg-cab"><h2 id="cam-titulo">Tire sua selfie</h2><button type="button" class="btn-fechar" data-fechar aria-label="Fechar câmera">&times;</button></div>
+  <div class="camera">
+    <video id="camera-video" playsinline muted autoplay></video>
+    <div class="camera-guia" aria-hidden="true"></div>
+  </div>
+  <p class="guia camera-dica">Encaixe o rosto na moldura e olhe para a câmera.</p>
+  <div class="dlg-acoes">
+    <button type="button" class="btn" data-fechar>Cancelar</button>
+    <button type="button" class="btn btn-metal" id="btn-capturar">Capturar foto</button>
+  </div>
+</dialog>
+
+<dialog id="dlg-detalhe" class="dlg-largo" aria-labelledby="det-titulo">
+  <div class="dlg-cab"><h2 id="det-titulo"></h2><button type="button" class="btn-fechar" data-fechar aria-label="Fechar">&times;</button></div>
+  <div class="dlg-corpo" id="det-corpo"></div>
+</dialog>
+
+<dialog id="dlg-confirmar" aria-labelledby="conf-texto">
+  <form method="dialog" class="dlg-corpo">
+    <p id="conf-texto"></p>
+    <div class="dlg-acoes">
+      <button value="nao" class="btn">Cancelar</button>
+      <button value="sim" class="btn btn-metal" id="conf-ok">Confirmar</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="carregando" id="carregando" role="status" aria-live="assertive" hidden>
+  <div class="giro" aria-hidden="true"></div>
+  <p id="carregando-txt">Carregando…</p>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="script.js" defer></script>
+</body>
+</html>
