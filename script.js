@@ -163,6 +163,7 @@ function irPara(passo) {
     if (pendente) { passo = pendente; toast('Complete esta etapa antes de revisar.', 'erro'); }
   }
   S.passo = passo;
+  modoCapa();
   $$('#app-func .etapa').forEach(s => { s.hidden = s.dataset.etapa !== passo; });
   const i = PASSOS.indexOf(passo);
   const fim = passo === 'protocolo';
@@ -596,8 +597,13 @@ function comecar(passo) {
 
 const pode = p => A.perms.includes(p);
 
+function modoCapa() {
+  document.body.classList.toggle('modo-capa', S.passo === 'inicio' && location.hash !== '#rh');
+}
+
 function rota() {
   const rh = location.hash === '#rh';
+  modoCapa();
   $('#app-func').hidden = rh;
   $('#app-rh').hidden = !rh;
   $('#sessao').hidden = rh || !S.token;
@@ -902,7 +908,7 @@ function ligarEventos() {
   $('#f-uf').append(...UFS.map(u => el('option', { value: u }, u)));
 
   $('#form-login').addEventListener('submit', entrar);
-  $$('.card[data-ir]').forEach(c => c.addEventListener('click', () => comecar(c.dataset.ir)));
+  $$('[data-ir]').forEach(c => c.addEventListener('click', () => comecar(c.dataset.ir)));
   $('#btn-iniciar').addEventListener('click', () => comecar('endereco'));
   $('#btn-login-voltar').addEventListener('click', () => irPara('inicio'));
   $('#btn-continuar').addEventListener('click', continuar);
