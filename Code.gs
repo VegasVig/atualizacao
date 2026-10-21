@@ -77,7 +77,8 @@ const ROTAS = {
   adminDetalhe: adminDetalhe_,
   adminFoto: adminFoto_,
   adminStatus: adminStatus_,
-  adminExportar: adminExportar_
+  adminExportar: adminExportar_,
+  adminUniformes: adminUniformes_
 };
 
 function doGet() {
@@ -364,6 +365,40 @@ function adminExportar_(req) {
     cabecalho: ['CPF'].concat(cab),
     linhas: lista.map(r => [cpfs[texto_(r.ID_FUNCIONARIO)] || ''].concat(cab.map(h => texto_(r[h]))))
   };
+}
+
+function adminUniformes_(req) {
+  sessaoAdmin_(req.token, 'ver');
+  const somenteAprovadas = !!req.somenteAprovadas;
+  const unidade = String(req.unidade || '');
+  const vigente = {};
+  ordenarDesc_(ler_('ATUALIZACOES').rows).forEach(r => {
+    const st = texto_(r.STATUS_ANALISE);
+    if (st === STATUS.DEVOLVIDA || (somenteAprovadas && st !== STATUS.APROVADA)) return;
+    const id = texto_(r.ID_FUNCIONARIO);
+    if (!vigente[id]) vigente[id] = r;
+  });
+  let base = Object.keys(vigente).map(k => vigente[k]);
+  if (unidade) base = base.filter(r => texto_(r.UNIDADE) === unidade);
+  const dados = base.map(r => linhaParaDados_(r).uniforme);
+
+  const pecas = opcoesUniforme_().map(p => {
+    const cont = {};
+    let naoUsa = 0;
+    let semInfo = 0;
+    dados.forEach(u => {
+      const v = u[p.chave];
+      if (!v) semInfo++;
+      else if (v === NAO_USA) naoUsa++;
+      else cont[v] = (cont[v] || 0) + 1;
+    });
+    const usam = dados.length - naoUsa - semInfo;
+    const tamanhos = Object.keys(cont)
+      .map(k => ({ tamanho: k, qtd: cont[k], pct: usam ? Math.round(cont[k] / usam * 1000) / 10 : 0 }))
+      .sort((a, b) => b.qtd - a.qtd || p.opcoes.indexOf(a.tamanho) - p.opcoes.indexOf(b.tamanho));
+    return { chave: p.chave, peca: p.peca, usam, naoUsa, semInfo, tamanhos };
+  });
+  return { funcionarios: dados.length, pecas };
 }
 
 /* ---------- Regras de negócio ---------- */

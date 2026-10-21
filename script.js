@@ -1,7 +1,7 @@
 'use strict';
 
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbzdIq3TpUJYYOP9vC9vfAyNYrDNreZPJKeV-ShGoeDRtZSHSmMuBoTD0U-n5aN0TJ3u/exec',
+  API_URL: 'COLE_AQUI_A_URL_DO_APP_DA_WEB',
   FOTO_LADOS: [960, 720],
   FOTO_QUALIDADES: [0.86, 0.78, 0.7, 0.62, 0.55],
   TIMEOUT_MS: 45000
@@ -723,6 +723,7 @@ async function carregarLista() {
   try {
     const r = await api('adminListar', { token: A.token, filtros: A.filtros });
     renderLista(r);
+    carregarUniformes();
   } catch (err) {
     tratarErroRh(err);
   } finally {
@@ -893,11 +894,58 @@ async function mudarStatus(a, status, campoObs) {
     renderDetalhe(r);
     const l = await api('adminListar', { token: A.token, filtros: A.filtros });
     renderLista(l);
+    carregarUniformes();
   } catch (err) {
     tratarErroRh(err);
   } finally {
     fimCarregando();
   }
+}
+
+async function carregarUniformes() {
+  try {
+    const r = await api('adminUniformes', { token: A.token, somenteAprovadas: $('#rh-uni-aprovadas').checked, unidade: A.filtros.unidade || '' });
+    A.uniformes = r;
+    renderUniformes(r);
+  } catch (err) {
+    tratarErroRh(err);
+  }
+}
+
+function renderUniformes(r) {
+  const aprovadas = $('#rh-uni-aprovadas').checked;
+  $('#rh-uni-info').textContent = r.funcionarios
+    ? `Base: ${r.funcionarios} funcionário(s), pelo envio mais recente de cada um${aprovadas ? ' já aprovado' : ''}. Envios devolvidos não entram.`
+    : 'Ainda não há envios para calcular.';
+  const grade = $('#rh-uni-grade');
+  grade.replaceChildren();
+  r.pecas.forEach(p => {
+    const max = p.tamanhos.length ? p.tamanhos[0].qtd : 0;
+    const lista = el('ol', { class: 'uni-barras' });
+    p.tamanhos.forEach((t, i) => lista.append(el('li', { class: i === 0 ? 'top' : null },
+      el('span', { class: 'uni-tam' }, t.tamanho),
+      el('span', { class: 'uni-trilho' }, el('span', { class: 'uni-barra', style: `width:${max ? t.qtd / max * 100 : 0}%` })),
+      el('span', { class: 'uni-num' }, `${t.qtd} · ${String(t.pct).replace('.', ',')}%`))));
+    if (!p.tamanhos.length) lista.append(el('li', { class: 'sem' }, 'Sem dados ainda.'));
+    const resumo = `${p.usam} usa(m)` + (p.naoUsa ? ` · ${p.naoUsa} não usa(m)` : '');
+    grade.append(el('article', { class: 'uni-card' }, el('h3', {}, p.peca), el('p', { class: 'dica' }, resumo), lista));
+  });
+}
+
+function exportarUniformes() {
+  if (!A.uniformes || !A.uniformes.funcionarios) return toast('Ainda não há dados de uniforme para exportar.', 'erro');
+  const linhas = [['Peça', 'Tamanho', 'Quantidade', 'Percentual']];
+  A.uniformes.pecas.forEach(p => {
+    p.tamanhos.forEach(t => linhas.push([p.peca, t.tamanho, t.qtd, String(t.pct).replace('.', ',') + '%']));
+    if (p.naoUsa) linhas.push([p.peca, 'Não usa', p.naoUsa, '']);
+  });
+  const csv = '\ufeff' + linhas.map(l => l.map(c => /[;"\n]/.test(String(c)) ? '"' + String(c).replace(/"/g, '""') + '"' : c).join(';')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = el('a', { href: url, download: `uniformes_tamanhos_${new Date().toISOString().slice(0, 10)}.csv` });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 async function exportarCsv() {
@@ -982,6 +1030,8 @@ function ligarEventos() {
   $('#form-rh-filtros').addEventListener('submit', e => { e.preventDefault(); carregarLista(); });
   $('#rh-sair').addEventListener('click', () => sairRh());
   $('#rh-exportar').addEventListener('click', exportarCsv);
+  $('#rh-uni-aprovadas').addEventListener('change', carregarUniformes);
+  $('#rh-uni-exportar').addEventListener('click', exportarUniformes);
   $$('#rh-stats .stat').forEach(b => b.addEventListener('click', () => {
     $('#rh-status').value = $('#rh-status').value === b.dataset.status ? '' : b.dataset.status;
     carregarLista();
