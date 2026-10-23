@@ -172,8 +172,8 @@
     </section>
 
     <section class="etapa" data-etapa="telefones" hidden>
-      <h2 tabindex="-1">Telefones de contato</h2>
-      <p class="guia">O celular principal é o número que o Departamento Pessoal vai usar para falar com você.</p>
+      <h2 tabindex="-1">Telefones e e-mail</h2>
+      <p class="guia">O celular principal e o e-mail são os canais que o Departamento Pessoal vai usar para falar com você.</p>
       <div class="grade">
         <div class="campo c-3">
           <label for="f-tel1">Celular principal</label>
@@ -184,6 +184,12 @@
           <label for="f-tel2">Telefone alternativo <span class="opcional">(opcional)</span></label>
           <input id="f-tel2" type="tel" inputmode="tel" maxlength="15">
           <p class="erro" id="e-f-tel2"></p>
+        </div>
+        <div class="campo c-6">
+          <label for="f-email">E-mail</label>
+          <input id="f-email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="120" placeholder="seuemail@exemplo.com">
+          <label class="opcao-check opcao-mini"><input type="checkbox" id="f-sem-email"><span>Não tenho e-mail</span></label>
+          <p class="erro" id="e-f-email"></p>
         </div>
         <div class="campo c-6 separador"><span>Contato de emergência <span class="opcional">(opcional)</span></span></div>
         <div class="campo c-3">

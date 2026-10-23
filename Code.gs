@@ -38,7 +38,7 @@ const ABAS = {
   FUNCIONARIOS: ['ID_FUNCIONARIO', 'MATRICULA', 'NOME_COMPLETO', 'CPF', 'CPF_HASH', 'STATUS', 'EMAIL_CORPORATIVO', 'DATA_CADASTRO', 'UNIDADE'],
   ATUALIZACOES: ['ID_ATUALIZACAO', 'PROTOCOLO', 'ID_FUNCIONARIO', 'MATRICULA', 'NOME_COMPLETO', 'UNIDADE',
     'CEP', 'LOGRADOURO', 'NUMERO', 'COMPLEMENTO', 'BAIRRO', 'CIDADE', 'UF', 'PONTO_REFERENCIA',
-    'TELEFONE_PRINCIPAL', 'TELEFONE_ALTERNATIVO', 'CONTATO_EMERGENCIA', 'TELEFONE_EMERGENCIA',
+    'TELEFONE_PRINCIPAL', 'TELEFONE_ALTERNATIVO', 'CONTATO_EMERGENCIA', 'TELEFONE_EMERGENCIA', 'EMAIL',
     'TAMANHO_CAMISA', 'TAMANHO_CALCA', 'TAMANHO_JAQUETA', 'TAMANHO_BERMUDA', 'TAMANHO_CALCADO', 'TAMANHOS_EXTRAS',
     'FOTO_FILE_ID', 'FOTO_URL_RESTRITA', 'DATA_ENVIO', 'STATUS_ANALISE', 'OBSERVACAO_RH', 'DATA_ANALISE', 'ANALISADO_POR', 'REQUEST_ID'],
   HISTORICO: ['ID_EVENTO', 'PROTOCOLO', 'ID_FUNCIONARIO', 'ACAO', 'DATA_HORA', 'RESPONSAVEL', 'OBSERVACAO'],
@@ -59,6 +59,8 @@ const NAO_USA = 'NAO_USA';
 const UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 const RE_CEL = /^[1-9][1-9]9\d{8}$/;
 const RE_TEL = /^[1-9][1-9](9\d{8}|[2-5]\d{7})$/;
+const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const SEM_EMAIL = 'NAO_POSSUI';
 const RE_PROTOCOLO = /^VEGAS-CAD-\d{8}-[A-Z0-9]{5}$/;
 const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -440,6 +442,7 @@ function validarDados_(e, pecas) {
     telAlternativo: so_(e.telAlternativo),
     contatoEmergencia: limpar_(e.contatoEmergencia).slice(0, 60),
     telEmergencia: so_(e.telEmergencia),
+    email: e.semEmail ? SEM_EMAIL : limpar_(e.email).toLowerCase().slice(0, 120),
     uniforme: {}
   };
   if (d.cep.length !== 8) erros.push('CEP');
@@ -452,6 +455,7 @@ function validarDados_(e, pecas) {
   if (d.telAlternativo && !RE_TEL.test(d.telAlternativo)) erros.push('telefone alternativo');
   if (d.telEmergencia && !RE_TEL.test(d.telEmergencia)) erros.push('telefone de emergência');
   if (!!d.telEmergencia !== !!d.contatoEmergencia) erros.push('contato de emergência (nome e telefone juntos)');
+  if (d.email !== SEM_EMAIL && !RE_EMAIL.test(d.email)) erros.push('e-mail');
 
   const u = e.uniforme && typeof e.uniforme === 'object' ? e.uniforme : {};
   pecas.forEach(p => {
@@ -500,7 +504,7 @@ function dadosParaLinha_(d) {
     CEP: d.cep, LOGRADOURO: d.logradouro, NUMERO: d.numero, COMPLEMENTO: d.complemento, BAIRRO: d.bairro,
     CIDADE: d.cidade, UF: d.uf, PONTO_REFERENCIA: d.referencia,
     TELEFONE_PRINCIPAL: d.telPrincipal, TELEFONE_ALTERNATIVO: d.telAlternativo,
-    CONTATO_EMERGENCIA: d.contatoEmergencia, TELEFONE_EMERGENCIA: d.telEmergencia
+    CONTATO_EMERGENCIA: d.contatoEmergencia, TELEFONE_EMERGENCIA: d.telEmergencia, EMAIL: d.email
   };
   const extras = {};
   Object.keys(d.uniforme).forEach(k => {
@@ -519,7 +523,7 @@ function linhaParaDados_(r) {
     cep: texto_(r.CEP), logradouro: texto_(r.LOGRADOURO), numero: texto_(r.NUMERO), complemento: texto_(r.COMPLEMENTO),
     bairro: texto_(r.BAIRRO), cidade: texto_(r.CIDADE), uf: texto_(r.UF), referencia: texto_(r.PONTO_REFERENCIA),
     telPrincipal: texto_(r.TELEFONE_PRINCIPAL), telAlternativo: texto_(r.TELEFONE_ALTERNATIVO),
-    contatoEmergencia: texto_(r.CONTATO_EMERGENCIA), telEmergencia: texto_(r.TELEFONE_EMERGENCIA), uniforme
+    contatoEmergencia: texto_(r.CONTATO_EMERGENCIA), telEmergencia: texto_(r.TELEFONE_EMERGENCIA), email: texto_(r.EMAIL), uniforme
   };
 }
 
@@ -759,7 +763,15 @@ function ler_(nome) {
 
 function anexar_(nome, obj) {
   const sh = aba_(nome);
-  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(h => String(h).trim());
+  let headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(h => String(h).trim());
+  const faltam = (ABAS[nome] || []).filter(h => headers.indexOf(h) < 0 && obj[h] !== undefined);
+  if (faltam.length) {
+    const cab = sh.getRange(1, headers.length + 1, 1, faltam.length);
+    cab.setValues([faltam]);
+    cab.setFontWeight('bold').setBackground('#171A20').setFontColor('#C7CBD1');
+    sh.getRange(1, headers.length + 1, sh.getMaxRows(), faltam.length).setNumberFormat('@');
+    headers = headers.concat(faltam);
+  }
   sh.appendRow(headers.map(h => (obj[h] === undefined || obj[h] === null) ? '' : obj[h]));
 }
 

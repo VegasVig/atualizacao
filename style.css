@@ -875,6 +875,9 @@ body.calibrando .hot { animation: none; outline: 2px dashed #FF3B3B; background:
 body.calibrando .hot::after { left: auto; top: auto; right: 0; bottom: 0; width: 14px; height: 14px; background: #FF3B3B; transform: none; animation: none; }
 .calib-saida { position: fixed; right: 10px; top: 10px; z-index: 200; width: min(560px, 60vw); height: 112px; padding: 8px; opacity: .92; font: 12px/1.4 monospace; color: #7CFF9B; background: #111; border: 1px solid #444; border-radius: 8px; }
 
+/* E-mail */
+.opcao-mini { margin-top: 10px; font-size: 14px; color: var(--prata); }
+
 /* Ranking de uniformes */
 .rh-uniformes { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--linha); }
 .rh-uni-cab { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }

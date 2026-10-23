@@ -1,7 +1,7 @@
 'use strict';
 
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbzdIq3TpUJYYOP9vC9vfAyNYrDNreZPJKeV-ShGoeDRtZSHSmMuBoTD0U-n5aN0TJ3u/exec',
+  API_URL: 'COLE_AQUI_A_URL_DO_APP_DA_WEB',
   FOTO_LADOS: [960, 720],
   FOTO_QUALIDADES: [0.86, 0.78, 0.7, 0.62, 0.55],
   TIMEOUT_MS: 45000
@@ -22,12 +22,14 @@ const TRANSICOES = {
 const CAMPOS = {
   cep: 'f-cep', logradouro: 'f-logradouro', numero: 'f-numero', complemento: 'f-complemento', bairro: 'f-bairro',
   cidade: 'f-cidade', uf: 'f-uf', referencia: 'f-referencia', telPrincipal: 'f-tel1', telAlternativo: 'f-tel2',
-  contatoEmergencia: 'f-contato', telEmergencia: 'f-tel3'
+  contatoEmergencia: 'f-contato', telEmergencia: 'f-tel3', email: 'f-email'
 };
+const SEM_EMAIL = 'NAO_POSSUI';
+const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const ROTULOS = [
   ['cep', 'CEP'], ['logradouro', 'Rua/avenida'], ['numero', 'Número'], ['complemento', 'Complemento'], ['bairro', 'Bairro'],
   ['cidade', 'Cidade'], ['uf', 'UF'], ['referencia', 'Ponto de referência'], ['telPrincipal', 'Celular principal'],
-  ['telAlternativo', 'Telefone alternativo'], ['contatoEmergencia', 'Contato de emergência'], ['telEmergencia', 'Telefone de emergência']
+  ['telAlternativo', 'Telefone alternativo'], ['email', 'E-mail'], ['contatoEmergencia', 'Contato de emergência'], ['telEmergencia', 'Telefone de emergência']
 ];
 
 const S = {
@@ -42,7 +44,7 @@ const so = v => String(v == null ? '' : v).replace(/\D/g, '');
 
 function novosDados() {
   return { cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', referencia: '',
-    telPrincipal: '', telAlternativo: '', contatoEmergencia: '', telEmergencia: '', uniforme: {} };
+    telPrincipal: '', telAlternativo: '', contatoEmergencia: '', telEmergencia: '', email: '', semEmail: false, uniforme: {} };
 }
 
 function el(tag, attrs = {}, ...filhos) {
@@ -219,6 +221,9 @@ function lerCampos() {
     const v = document.getElementById(id).value.trim();
     S.dados[k] = ['cep', 'telPrincipal', 'telAlternativo', 'telEmergencia'].includes(k) ? so(v) : v;
   });
+  S.dados.email = S.dados.email.toLowerCase();
+  S.dados.semEmail = $('#f-sem-email').checked;
+  if (S.dados.semEmail) S.dados.email = '';
 }
 
 function preencherCampos() {
@@ -226,6 +231,8 @@ function preencherCampos() {
     const v = S.dados[k] || '';
     document.getElementById(id).value = k === 'cep' ? mascaraCep(v) : k.startsWith('tel') ? mascaraTel(v) : v;
   });
+  $('#f-sem-email').checked = !!S.dados.semEmail;
+  $('#f-email').disabled = !!S.dados.semEmail;
   if (S.config) montarUniforme();
 }
 
@@ -251,6 +258,7 @@ function validarTelefones() {
   marcarErro('f-tel2', !d.telAlternativo || RE_TEL.test(d.telAlternativo) ? '' : 'Número inválido. Confira o DDD e os dígitos.');
   marcarErro('f-tel3', !d.telEmergencia || RE_TEL.test(d.telEmergencia) ? (d.contatoEmergencia && !d.telEmergencia ? 'Informe o telefone do contato.' : '') : 'Número inválido. Confira o DDD e os dígitos.');
   marcarErro('f-contato', d.telEmergencia && d.contatoEmergencia.length < 2 ? 'Informe o nome do contato.' : '');
+  marcarErro('f-email', d.semEmail || RE_EMAIL.test(d.email) ? '' : 'Informe um e-mail válido ou marque "Não tenho e-mail".');
   focarPrimeiroErro($('[data-etapa="telefones"]'));
   return !$('[data-etapa="telefones"] [aria-invalid="true"]');
 }
@@ -458,9 +466,10 @@ function montarResumo() {
     ['Cidade', `${d.cidade} / ${d.uf}`],
     ['Referência', d.referencia]
   ]);
-  bloco('Telefones', 'telefones', [
+  bloco('Telefones e e-mail', 'telefones', [
     ['Celular principal', mascaraTel(d.telPrincipal)],
     ['Alternativo', mascaraTel(d.telAlternativo)],
+    ['E-mail', d.semEmail ? 'Não possui' : d.email],
     ['Emergência', d.contatoEmergencia ? `${d.contatoEmergencia} – ${mascaraTel(d.telEmergencia)}` : '']
   ]);
   bloco('Uniforme', 'uniforme', S.config.pecas.map(p => [p.peca, fmtTam(d.uniforme[p.chave])]));
@@ -558,6 +567,7 @@ function aplicarUltima(u) {
   const base = novosDados();
   Object.keys(base).forEach(k => { if (k !== 'uniforme' && u.dados[k] != null) base[k] = u.dados[k]; });
   base.uniforme = Object.assign({}, u.dados.uniforme || {});
+  if (base.email === SEM_EMAIL) { base.email = ''; base.semEmail = true; }
   S.dados = base;
   if (u.status === 'DEVOLVIDA_PARA_CORRECAO') {
     S.avisoDevolucao = true;
@@ -760,7 +770,7 @@ function renderLista(r) {
 }
 
 function linhasComparacao(atual, anterior) {
-  const fmt = (k, v) => k === 'cep' ? mascaraCep(v) : k.startsWith('tel') ? mascaraTel(v) : (v || '');
+  const fmt = (k, v) => k === 'cep' ? mascaraCep(v) : k.startsWith('tel') ? mascaraTel(v) : v === SEM_EMAIL ? 'Não possui' : (v || '');
   const linhas = ROTULOS.map(([k, rot]) => [rot, anterior ? fmt(k, anterior[k]) : null, fmt(k, atual[k])]);
   const pecas = (S.config ? S.config.pecas : []).map(p => [p.chave, p.peca]);
   const chaves = new Set(pecas.map(p => p[0]));
@@ -1005,6 +1015,12 @@ function ligarEventos() {
     }
   });
   $('#f-uf').addEventListener('change', e => marcarErro(e.target.id, ''));
+  $('#f-sem-email').addEventListener('change', e => {
+    $('#f-email').disabled = e.target.checked;
+    if (e.target.checked) $('#f-email').value = '';
+    marcarErro('f-email', '');
+    S.sujo = true;
+  });
 
   $('#btn-camera').addEventListener('click', abrirCamera);
   $('#btn-galeria').addEventListener('click', () => $('#f-arquivo').click());
